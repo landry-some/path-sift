@@ -7,6 +7,7 @@ import sys
 from . import __version__
 from .filters import Filters, normalize_ext, parse_age, parse_size
 from .match import rank
+from .tui import TerminalError, pick
 from .walk import walk
 
 
@@ -29,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("query", nargs="?", default="", help="letters to look for, in order (default: list everything)")
     parser.add_argument("paths", nargs="*", metavar="path", help="folders to search (default: current folder)")
+    parser.add_argument("-i", "--interactive", action="store_true", help="pick one result in a terminal UI and print it (QUERY becomes the starting text)")
     parser.add_argument("-t", "--type", choices=["f", "d"], dest="kind", help="only files (f) or only directories (d)")
     parser.add_argument("-e", "--ext", action="append", default=[], help="only files with this extension (repeatable)")
     parser.add_argument("--min-size", type=_arg(parse_size), metavar="SIZE", help="only files at least this big (500, 10k, 1.5M, 2G)")
@@ -58,6 +60,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be at least 1")
+    if args.interactive and args.limit is not None:
+        parser.error("--limit can't be used with --interactive")
     roots = args.paths or ["."]
     for root in roots:
         if not os.path.isdir(root):
@@ -72,6 +76,8 @@ def main(argv: list[str] | None = None) -> int:
         older=args.older,
     )
     candidates = collect(roots, filters, args.hidden, args.no_ignore)
+    if args.interactive:
+        return _interactive(candidates, args.query)
     results = rank(args.query, candidates, args.limit)
     try:
         for path, _ in results:
@@ -82,6 +88,21 @@ def main(argv: list[str] | None = None) -> int:
         # stdout at /dev/null so the interpreter's final flush stays quiet.
         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
     return 0 if results else 1
+
+
+def _interactive(candidates: list[str], query: str) -> int:
+    if not candidates:
+        print("path-sift: nothing to pick from", file=sys.stderr)
+        return 1
+    try:
+        choice = pick(candidates, query)
+    except TerminalError as exc:
+        print(f"path-sift: {exc}", file=sys.stderr)
+        return 2
+    if choice is None:
+        return 1
+    print(choice)
+    return 0
 
 
 if __name__ == "__main__":
