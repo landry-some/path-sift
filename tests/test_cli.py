@@ -78,6 +78,15 @@ def test_hidden_and_no_ignore(tree, capsys):
     assert os.path.join("node_modules", "pkg", "config.js") in lines
 
 
+def test_follow(tree, capsys):
+    (tree / "docs-link").symlink_to(tree / "docs", target_is_directory=True)
+    target = os.path.join("docs-link", "config-guide.md")
+    _, lines = run(capsys, "guide")
+    assert target not in lines
+    _, lines = run(capsys, "guide", "-L")
+    assert target in lines
+
+
 def test_limit(tree, capsys):
     _, lines = run(capsys, "", "-n", "2")
     assert len(lines) == 2

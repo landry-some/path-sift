@@ -39,16 +39,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--older", type=_arg(parse_age), metavar="AGE", help="only entries last modified more than AGE ago")
     parser.add_argument("-H", "--hidden", action="store_true", help="include hidden files and directories")
     parser.add_argument("--no-ignore", action="store_true", help="also search .git, node_modules, __pycache__, .venv and similar")
+    parser.add_argument("-L", "--follow", action="store_true", help="follow directory symlinks (loops are detected and not entered)")
     parser.add_argument("-n", "--limit", type=int, metavar="N", help="print at most N results")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
 
-def collect(roots: list[str], filters: Filters, hidden: bool, no_ignore: bool) -> list[str]:
+def collect(
+    roots: list[str], filters: Filters, hidden: bool, no_ignore: bool, follow: bool = False
+) -> list[str]:
     """Paths of all entries below ``roots`` that pass ``filters``."""
     found = []
     for root in roots:
-        for entry in walk(root, hidden=hidden, no_ignore=no_ignore):
+        for entry in walk(root, hidden=hidden, no_ignore=no_ignore, follow=follow):
             if filters.accepts(entry):
                 found.append(entry.path)
     return found
@@ -75,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
         newer=args.newer,
         older=args.older,
     )
-    candidates = collect(roots, filters, args.hidden, args.no_ignore)
+    candidates = collect(roots, filters, args.hidden, args.no_ignore, args.follow)
     if args.interactive:
         return _interactive(candidates, args.query)
     results = rank(args.query, candidates, args.limit)

@@ -67,9 +67,10 @@ Ties go to the shorter path. With no query, entries are listed in walk order.
 | `--newer AGE`, `--older AGE` | Modified within / more than AGE ago: `90s`, `30m`, `2h`, `3d`, `1w` |
 | `-H`, `--hidden` | Include names starting with a dot |
 | `--no-ignore` | Also go into `.git`, `node_modules`, `__pycache__`, `.venv`, `venv`, `.hg`, `.svn`, `.tox`, `.mypy_cache`, `.pytest_cache` |
+| `-L`, `--follow` | Follow directory symlinks; a link back up into a folder already being walked is listed but not entered |
 | `-n N`, `--limit N` | Print at most N results (not with `-i`) |
 
-Directory symlinks are listed but not followed. Folders that can't be read are skipped.
+Directory symlinks are listed but not followed unless you pass `-L`. Folders that can't be read are skipped.
 
 ### Picker keys
 

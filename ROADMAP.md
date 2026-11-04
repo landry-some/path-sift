@@ -12,7 +12,7 @@ What comes after v0.1, with rough estimates. Total: **24.5 hours**.
 
 ## Bugs and edge cases
 
-- [ ] `--follow` for directory symlinks, with loop detection (1.5 h)
+- [x] `--follow` for directory symlinks, with loop detection (1.5 h)
 - [ ] File names that are not valid UTF-8: display safely, print the raw bytes (1 h)
 - [ ] Huge trees: show results in the picker while the walk is still running (2 h)
 

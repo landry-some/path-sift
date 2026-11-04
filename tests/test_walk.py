@@ -67,6 +67,48 @@ def test_does_not_follow_dir_symlinks(tmp_path):
     assert not link.is_dir
 
 
+def test_follow_enters_dir_symlinks(tmp_path):
+    make_tree(tmp_path, ["real/inside.txt"])
+    (tmp_path / "link").symlink_to(tmp_path / "real", target_is_directory=True)
+    entries = {os.path.relpath(e.path, tmp_path): e for e in walk(str(tmp_path), follow=True)}
+    assert "link/inside.txt" in entries
+    assert entries["link"].is_dir
+
+
+def test_follow_stats_file_symlink_targets(tmp_path):
+    make_tree(tmp_path, ["data.bin"])
+    (tmp_path / "data.bin").write_bytes(b"x" * 5000)
+    (tmp_path / "alias").symlink_to(tmp_path / "data.bin")
+    sizes = {os.path.basename(e.path): e.size for e in walk(str(tmp_path), follow=True)}
+    assert sizes["alias"] == 5000
+
+
+def test_follow_lists_broken_symlinks(tmp_path):
+    (tmp_path / "dangling").symlink_to(tmp_path / "gone")
+    entries = list(walk(str(tmp_path), follow=True))
+    assert [os.path.basename(e.path) for e in entries] == ["dangling"]
+    assert not entries[0].is_dir
+
+
+def test_follow_does_not_loop(tmp_path):
+    make_tree(tmp_path, ["a/b/file.txt"])
+    (tmp_path / "a/b/up").symlink_to(tmp_path / "a", target_is_directory=True)
+    (tmp_path / "a/self").symlink_to(tmp_path / "a", target_is_directory=True)
+    (tmp_path / "root").symlink_to(tmp_path, target_is_directory=True)
+    assert paths_of(tmp_path, follow=True) == [
+        "a", "root", "a/b", "a/self", "a/b/file.txt", "a/b/up",
+    ]
+
+
+def test_follow_walks_a_sibling_twice(tmp_path):
+    # Not a loop: the same folder reached by two paths is listed under both.
+    make_tree(tmp_path, ["shared/x.txt", "user/"])
+    (tmp_path / "user/shared").symlink_to(tmp_path / "shared", target_is_directory=True)
+    paths = paths_of(tmp_path, follow=True)
+    assert "shared/x.txt" in paths
+    assert "user/shared/x.txt" in paths
+
+
 def test_unreadable_dir_is_skipped(tmp_path):
     make_tree(tmp_path, ["locked/secret.txt", "open.txt"])
     os.chmod(tmp_path / "locked", 0)
