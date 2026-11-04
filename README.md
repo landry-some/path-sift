@@ -31,6 +31,8 @@ path-sift log --newer 2d -t f       # files matching "log" changed in the last 2
 path-sift -t d                      # every directory, no query
 path-sift -i                        # interactive picker, prints the chosen path(s)
 vim "$(path-sift -i conf)"          # open the picked file
+path-sift -i --exec vim             # same, and works with several marked files
+path-sift -e log -x 'cp {} /tmp'    # copy every .log file to /tmp in one command
 path-sift --help                    # all options
 ```
 
@@ -69,6 +71,7 @@ Ties go to the shorter path. With no query, entries are listed in walk order.
 | `--no-ignore` | Also go into `.git`, `node_modules`, `__pycache__`, `.venv`, `venv`, `.hg`, `.svn`, `.tox`, `.mypy_cache`, `.pytest_cache` |
 | `-L`, `--follow` | Follow directory symlinks; a link back up into a folder already being walked is listed but not entered |
 | `-n N`, `--limit N` | Print at most N results (not with `-i`) |
+| `-x CMD`, `--exec CMD` | Instead of printing, run CMD once with the results (or the paths picked with `-i`) as extra arguments. CMD is split like a shell would split it, but no shell runs it. A `{}` word marks where the paths go; without one they go at the end |
 
 Directory symlinks are listed but not followed unless you pass `-L`. Folders that can't be read are skipped.
 
@@ -90,7 +93,8 @@ The picker draws on `/dev/tty`, so it works inside `$(...)` and pipes.
 ### Exit codes
 
 `0` something was printed, `1` no matches or the picker was cancelled, `2` bad
-arguments or no terminal for the picker.
+arguments or no terminal for the picker. With `--exec`, the command's own exit code,
+or `127` if it wasn't found, `126` if it can't be run (and `1`, without running it, when nothing matched).
 
 ## Test
 

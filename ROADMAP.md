@@ -7,7 +7,7 @@ What comes after v0.1, with rough estimates. Total: **24.5 hours**.
 - [ ] Respect `.gitignore` / `.ignore` files while walking (4 h)
 - [ ] Preview pane in the picker: first lines of a text file, or a directory listing (3 h)
 - [x] Multi-select in the picker (Tab to mark, Enter prints all marked paths) (2 h)
-- [ ] `--exec CMD` to run a command on the selected path(s) (1.5 h)
+- [x] `--exec CMD` to run a command on the selected path(s) (1.5 h)
 - [ ] Config file (`~/.config/path-sift/config.toml`) for default flags and skip list (2 h)
 
 ## Bugs and edge cases

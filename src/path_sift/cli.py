@@ -2,6 +2,8 @@
 
 import argparse
 import os
+import shlex
+import subprocess
 import sys
 
 from . import __version__
@@ -23,6 +25,36 @@ def _arg(parse):
     return convert
 
 
+def parse_command(text: str) -> list[str]:
+    """Split an --exec command line into words, shell style."""
+    words = shlex.split(text)
+    if not words:
+        raise ValueError("--exec needs a command")
+    return words
+
+
+def command_line(words: list[str], paths: list[str]) -> list[str]:
+    """Put ``paths`` where ``{}`` is in ``words``, or after the last word."""
+    if "{}" not in words:
+        return words + paths
+    argv = []
+    for word in words:
+        argv.extend(paths if word == "{}" else [word])
+    return argv
+
+
+def run_command(words: list[str], paths: list[str]) -> int:
+    """Run the --exec command on ``paths`` and return its exit code."""
+    try:
+        return subprocess.run(command_line(words, paths)).returncode
+    except FileNotFoundError:
+        print(f"path-sift: command not found: {words[0]}", file=sys.stderr)
+        return 127
+    except OSError as exc:
+        print(f"path-sift: can't run {words[0]}: {exc.strerror}", file=sys.stderr)
+        return 126
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="path-sift",
@@ -41,6 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-ignore", action="store_true", help="also search .git, node_modules, __pycache__, .venv and similar")
     parser.add_argument("-L", "--follow", action="store_true", help="follow directory symlinks (loops are detected and not entered)")
     parser.add_argument("-n", "--limit", type=int, metavar="N", help="print at most N results")
+    parser.add_argument("-x", "--exec", type=_arg(parse_command), metavar="CMD", help="run CMD once with the results as arguments instead of printing them; {} marks where they go")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
 
@@ -80,8 +113,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     candidates = collect(roots, filters, args.hidden, args.no_ignore, args.follow)
     if args.interactive:
-        return _interactive(candidates, args.query)
+        return _interactive(candidates, args.query, args.exec)
     results = rank(args.query, candidates, args.limit)
+    if args.exec:
+        return run_command(args.exec, [path for path, _ in results]) if results else 1
     try:
         for path, _ in results:
             print(path)
@@ -93,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     return 0 if results else 1
 
 
-def _interactive(candidates: list[str], query: str) -> int:
+def _interactive(candidates: list[str], query: str, command: list[str] | None) -> int:
     if not candidates:
         print("path-sift: nothing to pick from", file=sys.stderr)
         return 1
@@ -104,6 +139,8 @@ def _interactive(candidates: list[str], query: str) -> int:
         return 2
     if chosen is None:
         return 1
+    if command:
+        return run_command(command, chosen)
     for path in chosen:
         print(path)
     return 0

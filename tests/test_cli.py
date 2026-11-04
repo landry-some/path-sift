@@ -5,7 +5,8 @@ import time
 
 import pytest
 
-from path_sift.cli import main
+from path_sift import cli
+from path_sift.cli import command_line, main
 
 
 @pytest.fixture
@@ -98,12 +99,69 @@ def test_explicit_paths(tree, capsys):
 
 
 @pytest.mark.parametrize(
+    "words, expected",
+    [
+        (["ls", "-l"], ["ls", "-l", "a", "b"]),
+        (["cp", "{}", "/tmp"], ["cp", "a", "b", "/tmp"]),
+        (["diff", "{}", "--", "{}"], ["diff", "a", "b", "--", "a", "b"]),
+    ],
+)
+def test_command_line(words, expected):
+    assert command_line(words, ["a", "b"]) == expected
+
+
+ECHO_ARGS = "import sys; print(repr(sys.argv[1:])); sys.exit(len(sys.argv) - 1)"
+
+
+def exec_argv(*words):
+    return " ".join([f'"{sys.executable}"', "-c", f'"{ECHO_ARGS}"', *words])
+
+
+def test_exec_runs_once_with_all_results(tree, capfd):
+    code = main(["main", "src", "-t", "f", "--exec", exec_argv("first")])
+    out = capfd.readouterr().out
+    assert code == 2  # the command's own exit code: two arguments
+    assert out == repr(["first", os.path.join("src", "app", "main.py")]) + "\n"
+
+
+def test_exec_placeholder(tree, capfd):
+    code = main(["", "docs", "-x", exec_argv("{}", "last")])
+    assert code == 2
+    assert capfd.readouterr().out == repr([os.path.join("docs", "config-guide.md"), "last"]) + "\n"
+
+
+def test_exec_not_run_without_results(tree, capfd):
+    assert main(["zzzz", "--exec", exec_argv()]) == 1
+    assert capfd.readouterr().out == ""
+
+
+def test_exec_missing_command(tree, capsys):
+    assert main(["readme", "--exec", "no-such-command-path-sift"]) == 127
+    assert "command not found: no-such-command-path-sift" in capsys.readouterr().err
+
+
+def test_exec_with_interactive(tree, monkeypatch):
+    seen = {}
+
+    def fake_run(argv):
+        seen["argv"] = argv
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr(cli, "pick", lambda items, query: ["README.md", "build"])
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+    assert main(["-i", "--exec", "vim -p"]) == 0
+    assert seen["argv"] == ["vim", "-p", "README.md", "build"]
+
+
+@pytest.mark.parametrize(
     "argv, message",
     [
         (["x", "--min-size", "huge"], "invalid size"),
         (["x", "--newer", "3y"], "invalid age"),
         (["x", "-n", "0"], "--limit must be at least 1"),
         (["x", "missing-dir"], "not a directory"),
+        (["x", "--exec", ""], "--exec needs a command"),
+        (["x", "--exec", "vim 'oops"], "No closing quotation"),
     ],
 )
 def test_bad_arguments(tree, capsys, argv, message):
