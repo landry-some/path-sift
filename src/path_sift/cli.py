@@ -30,7 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("query", nargs="?", default="", help="letters to look for, in order (default: list everything)")
     parser.add_argument("paths", nargs="*", metavar="path", help="folders to search (default: current folder)")
-    parser.add_argument("-i", "--interactive", action="store_true", help="pick one result in a terminal UI and print it (QUERY becomes the starting text)")
+    parser.add_argument("-i", "--interactive", action="store_true", help="pick results in a terminal UI and print them (QUERY becomes the starting text)")
     parser.add_argument("-t", "--type", choices=["f", "d"], dest="kind", help="only files (f) or only directories (d)")
     parser.add_argument("-e", "--ext", action="append", default=[], help="only files with this extension (repeatable)")
     parser.add_argument("--min-size", type=_arg(parse_size), metavar="SIZE", help="only files at least this big (500, 10k, 1.5M, 2G)")
@@ -98,13 +98,14 @@ def _interactive(candidates: list[str], query: str) -> int:
         print("path-sift: nothing to pick from", file=sys.stderr)
         return 1
     try:
-        choice = pick(candidates, query)
+        chosen = pick(candidates, query)
     except TerminalError as exc:
         print(f"path-sift: {exc}", file=sys.stderr)
         return 2
-    if choice is None:
+    if chosen is None:
         return 1
-    print(choice)
+    for path in chosen:
+        print(path)
     return 0
 
 

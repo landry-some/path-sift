@@ -2,7 +2,7 @@
 
 A command-line file finder: type a few letters of a file's name and get matching paths
 ranked best first, optionally narrowed down by type, extension, size and age. With `-i`
-it opens an interactive picker in the terminal and prints the path you choose, so it
+it opens an interactive picker in the terminal and prints the paths you choose, so it
 can feed other commands (`vim "$(path-sift -i)"`).
 
 It's for people who live in a terminal and are tired of writing long `find` expressions
@@ -29,7 +29,7 @@ path-sift conf ~/projects ~/notes   # search these folders instead of "."
 path-sift -e png --min-size 1M      # PNG files of 1 MiB or more
 path-sift log --newer 2d -t f       # files matching "log" changed in the last 2 days
 path-sift -t d                      # every directory, no query
-path-sift -i                        # interactive picker, prints the chosen path
+path-sift -i                        # interactive picker, prints the chosen path(s)
 vim "$(path-sift -i conf)"          # open the picked file
 path-sift --help                    # all options
 ```
@@ -80,9 +80,11 @@ Directory symlinks are listed but not followed unless you pass `-L`. Folders tha
 | Backspace, Ctrl-W, Ctrl-U | Delete a letter, the last word, everything |
 | Up / Down, Ctrl-P / Ctrl-N | Move the highlight |
 | PageUp / PageDown | Move a screen at a time |
-| Enter | Print the highlighted path and exit |
+| Tab | Mark or unmark the highlighted path (shown with `*`) and move down |
+| Enter | Print the marked paths, one per line, in the order marked; with no marks, the highlighted path |
 | Esc, Ctrl-C, Ctrl-G | Exit without printing |
 
+Marks stay when you change the query, so you can collect paths from several searches.
 The picker draws on `/dev/tty`, so it works inside `$(...)` and pipes.
 
 ### Exit codes

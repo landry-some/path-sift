@@ -33,6 +33,8 @@ def handle_key(picker: Picker, key: str | int, page: int) -> str | None:
         return CANCEL
     if key in _BACKSPACE:
         picker.backspace()
+    elif key == "\t":
+        picker.toggle_mark()
     elif key == "\x17":  # Ctrl-W
         picker.delete_word()
     elif key == "\x15":  # Ctrl-U
@@ -71,12 +73,15 @@ def _draw(screen, picker: Picker) -> None:
         cut = len(path) - len(shown)
         selected = index == picker.cursor
         base = curses.A_REVERSE if selected else curses.A_NORMAL
-        screen.addstr(y, 0, "> " if selected else "  ", base)
+        marker = (">" if selected else " ") + ("*" if path in picker.marked else " ")
+        screen.addstr(y, 0, marker, base)
         bold = {i - cut for i in match.positions}
         for x, ch in enumerate(shown):
             attr = base | (curses.A_BOLD | curses.A_UNDERLINE if x in bold else 0)
             screen.addstr(y, 2 + x, ch, attr)
     count = f"  {len(picker.results)}/{len(picker.items)}"
+    if picker.marked:
+        count += f"  ({len(picker.marked)} marked)"
     screen.addnstr(1, 0, count, width - 1, curses.A_DIM)
     prompt = "> " + picker.query
     screen.addnstr(0, 0, prompt[-(width - 1) :], width - 1)
@@ -84,7 +89,7 @@ def _draw(screen, picker: Picker) -> None:
     screen.refresh()
 
 
-def _loop(screen, picker: Picker) -> str | None:
+def _loop(screen, picker: Picker) -> list[str] | None:
     curses.use_default_colors()
     # Raw mode so Ctrl-C arrives as a key and cancels the picker, instead of
     # a SIGINT that would also kill the calling shell script.
@@ -99,7 +104,7 @@ def _loop(screen, picker: Picker) -> str | None:
             continue
         action = handle_key(picker, key, page=max(1, screen.getmaxyx()[0] - 2))
         if action == ACCEPT:
-            return picker.selected()
+            return picker.chosen() or None
         if action == CANCEL:
             return None
 
@@ -129,8 +134,11 @@ def _terminal_fds():
             os.close(fd)
 
 
-def pick(items: list[str], query: str = "") -> str | None:
-    """Show the picker and return the chosen path, or None if cancelled."""
+def pick(items: list[str], query: str = "") -> list[str] | None:
+    """Show the picker and return the chosen paths, or None if cancelled.
+
+    That is the marked paths if any were marked with Tab, otherwise just the
+    highlighted one."""
     os.environ.setdefault("ESCDELAY", "25")  # make Esc respond quickly
     picker = Picker(items, query)
     with _terminal_fds():

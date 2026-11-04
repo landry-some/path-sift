@@ -4,7 +4,8 @@ from .match import Match, rank
 
 
 class Picker:
-    """The query being typed, the ranked results and the highlighted row."""
+    """The query being typed, the ranked results, the highlighted row and the
+    paths marked for multi-select."""
 
     def __init__(self, items: list[str], query: str = ""):
         self.items = items
@@ -12,6 +13,8 @@ class Picker:
         self.results: list[tuple[str, Match]] = []
         self.cursor = 0
         self.top = 0
+        # A dict keeps the marks in the order they were made.
+        self.marked: dict[str, None] = {}
         self.set_query(query)
 
     def set_query(self, query: str) -> None:
@@ -49,6 +52,25 @@ class Picker:
         if not self.results:
             return None
         return self.results[self.cursor][0]
+
+    def toggle_mark(self) -> None:
+        """Mark or unmark the highlighted path, then move down a row."""
+        path = self.selected()
+        if path is None:
+            return
+        if path in self.marked:
+            del self.marked[path]
+        else:
+            self.marked[path] = None
+        self.move(1)
+
+    def chosen(self) -> list[str]:
+        """What Enter picks: the marked paths if there are any (marks survive
+        query changes), otherwise the highlighted one."""
+        if self.marked:
+            return list(self.marked)
+        path = self.selected()
+        return [] if path is None else [path]
 
     def visible(self, height: int) -> list[tuple[int, str, Match]]:
         """Rows to draw in a list ``height`` lines tall, scrolled so the

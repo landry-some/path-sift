@@ -30,7 +30,7 @@ def test_typing_and_editing_keys():
 
 def test_non_printable_keys_are_ignored():
     p = Picker(ITEMS)
-    press(p, "\t", curses.KEY_F1, curses.KEY_LEFT)
+    press(p, "\x01", curses.KEY_F1, curses.KEY_LEFT)
     assert p.query == ""
 
 
@@ -44,6 +44,13 @@ def test_navigation_keys():
     assert p.cursor == 6
     press(p, "\x10", curses.KEY_PPAGE)
     assert p.cursor == 0
+
+
+def test_tab_marks():
+    p = Picker(ITEMS)
+    press(p, "\t", curses.KEY_DOWN, "\t")
+    assert p.chosen() == ["dir/file0.txt", "dir/file2.txt"]
+    assert p.query == ""
 
 
 @pytest.mark.parametrize("key", ["\n", "\r", curses.KEY_ENTER])
@@ -82,12 +89,18 @@ def test_interactive_prints_choice(small_tree, monkeypatch, capsys):
 
     def fake_pick(items, query):
         seen["items"], seen["query"] = sorted(items), query
-        return "todo.md"
+        return ["todo.md"]
 
     monkeypatch.setattr(cli, "pick", fake_pick)
     assert cli.main(["-i", "to"]) == 0
     assert capsys.readouterr().out == "todo.md\n"
     assert seen == {"items": ["notes.txt", "todo.md"], "query": "to"}
+
+
+def test_interactive_prints_every_marked_path(small_tree, monkeypatch, capsys):
+    monkeypatch.setattr(cli, "pick", lambda items, query: ["todo.md", "notes.txt"])
+    assert cli.main(["-i"]) == 0
+    assert capsys.readouterr().out == "todo.md\nnotes.txt\n"
 
 
 def test_interactive_cancel_exits_1(small_tree, monkeypatch, capsys):
